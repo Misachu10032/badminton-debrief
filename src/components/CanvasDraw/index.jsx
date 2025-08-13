@@ -11,11 +11,25 @@ import {
 import useHistory from "./useHistory";
 
 export default function CanvasDraw({
-  width = 600,
-  height = 900,
   strokeStyle = "#000",
   lineWidth = 2,
 }) {
+  // Responsive canvas size
+  const [canvasSize, setCanvasSize] = useState({ width: 360, height: 600 });
+
+  useEffect(() => {
+    function handleResize() {
+      const w = Math.min(window.innerWidth, 480);
+      const h = Math.min(window.innerHeight - 120, 700);
+      setCanvasSize({ width: w, height: h });
+    }
+    handleResize();
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  const { width, height } = canvasSize;
+
   const canvasRef = useRef(null);
   const offscreenRef = useRef(null);
   const offscreenCtxRef = useRef(null);
@@ -32,43 +46,43 @@ export default function CanvasDraw({
   const backgroundImageRef = useRef(null);
   const lastPos = useRef([0, 0]);
 
-  // initial four triangles: two red (left) and two blue (right)
+  // initial four triangles: two red (top), two blue (bottom)
   const initialShapes = [
     {
       id: "t1",
       type: "triangle",
-      x: 200,
-      y: 700,
-      size: 80,
+      x: width * 0.25,
+      y: height * 0.18,
+      size: Math.min(width, height) * 0.18,
       fill: "#ef4444",
-      angle: 0,
+      angle: Math.PI, // upside down
     },
     {
       id: "t2",
       type: "triangle",
-      x: 400,
-      y: 700,
-      size: 80,
+      x: width * 0.75,
+      y: height * 0.18,
+      size: Math.min(width, height) * 0.18,
       fill: "#ef4444",
-      angle: 0,
+      angle: Math.PI, // upside down
     },
     {
       id: "t3",
       type: "triangle",
-      x: 200,
-      y: 250,
-      size: 80,
+      x: width * 0.25,
+      y: height * 0.82,
+      size: Math.min(width, height) * 0.18,
       fill: "#60a5fa",
-      angle:  Math.PI,
+      angle: 0,
     },
     {
       id: "t4",
       type: "triangle",
-      x: 400,
-      y: 250,
-      size: 80,
+      x: width * 0.75,
+      y: height * 0.82,
+      size: Math.min(width, height) * 0.18,
       fill: "#60a5fa",
-      angle:  Math.PI,
+      angle: 0,
     },
   ];
 
@@ -152,10 +166,20 @@ export default function CanvasDraw({
     return null;
   };
 
+  // Utility to get position from mouse or touch event
   const getPos = (e) => {
+    let clientX, clientY;
+    if (e.touches && e.touches.length > 0) {
+      clientX = e.touches[0].clientX;
+      clientY = e.touches[0].clientY;
+    } else if (e.changedTouches && e.changedTouches.length > 0) {
+      clientX = e.changedTouches[0].clientX;
+      clientY = e.changedTouches[0].clientY;
+    } else {
+      clientX = e.clientX;
+      clientY = e.clientY;
+    }
     const rect = canvasRef.current.getBoundingClientRect();
-    const clientX = e.clientX ?? (e.touches && e.touches[0]?.clientX);
-    const clientY = e.clientY ?? (e.touches && e.touches[0]?.clientY);
     return [clientX - rect.left, clientY - rect.top];
   };
 
@@ -169,12 +193,7 @@ export default function CanvasDraw({
   // ----- Canvas pointer handlers -----
   const pointerDown = (e) => {
     e.preventDefault();
-
-    const rect = canvasRef.current.getBoundingClientRect();
-    const clientX = e.clientX ?? (e.touches && e.touches[0]?.clientX);
-    const clientY = e.clientY ?? (e.touches && e.touches[0]?.clientY);
-    const x = clientX - rect.left;
-    const y = clientY - rect.top;
+    const [x, y] = getPos(e);
     const hit = hitTest(x, y);
     if (hit) {
       if (hit.type === "rotate") {
@@ -189,11 +208,9 @@ export default function CanvasDraw({
         dragShapeIndex.current = hit.index;
         const s = shapes[hit.index];
         dragOffset.current = [x - s.x, y - s.y];
-
         return;
       }
     }
-
     // freehand drawing
     isDrawing.current = true;
     lastPos.current = [x, y];
@@ -204,11 +221,11 @@ export default function CanvasDraw({
   };
 
   const pointerMove = (e) => {
-    const rect = canvasRef.current.getBoundingClientRect();
-    const clientX = e.clientX ?? (e.touches && e.touches[0]?.clientX);
-    const clientY = e.clientY ?? (e.touches && e.touches[0]?.clientY);
-    const x = clientX - rect.left;
-    const y = clientY - rect.top;
+    if (
+      !(isDrawing.current || isDragging.current || isRotating.current)
+    ) return;
+    e.preventDefault();
+    const [x, y] = getPos(e);
 
     if (isRotating.current && rotateShapeIndex.current !== -1) {
       const i = rotateShapeIndex.current;
@@ -240,31 +257,29 @@ export default function CanvasDraw({
       return;
     }
 
-    if (!isDrawing.current) return;
-    const ctx = offscreenCtxRef.current;
-    ctx.lineTo(x, y);
-    ctx.stroke();
-    redraw();
-    lastPos.current = [x, y];
+    if (isDrawing.current) {
+      const ctx = offscreenCtxRef.current;
+      ctx.lineTo(x, y);
+      ctx.stroke();
+      redraw();
+      lastPos.current = [x, y];
+    }
   };
 
   const pointerUp = (e) => {
+    e.preventDefault();
     if (isRotating.current) {
       isRotating.current = false;
       rotateShapeIndex.current = -1;
-      // finalize shapes snapshot
-  
       return;
     }
     if (isDragging.current) {
       isDragging.current = false;
       dragShapeIndex.current = -1;
-
       return;
     }
     if (isDrawing.current) {
       isDrawing.current = false;
-      // finalize image snapshot
       history.saveSnapshot();
     }
   };
@@ -348,15 +363,18 @@ export default function CanvasDraw({
             display: "block",
             border: "1px solid #ddd",
           }}
+          onPointerDown={pointerDown}
+          onPointerMove={pointerMove}
+          onPointerUp={pointerUp}
+          onPointerLeave={pointerUp}
+          // Fallback for browsers without pointer events
           onMouseDown={pointerDown}
           onMouseMove={pointerMove}
           onMouseUp={pointerUp}
           onMouseLeave={pointerUp}
-          onTouchStart={(e) => pointerDown(e.touches ? e.touches[0] : e)}
-          onTouchMove={(e) => pointerMove(e.touches ? e.touches[0] : e)}
-          onTouchEnd={(e) =>
-            pointerUp(e.changedTouches ? e.changedTouches[0] : e)
-          }
+          onTouchStart={pointerDown}
+          onTouchMove={pointerMove}
+          onTouchEnd={pointerUp}
         />
       </div>
     </div>
