@@ -18,22 +18,19 @@ export default function useHistory(offscreenRef, setShapes, redraw) {
   const init = useCallback(() => {
     const off = offscreenRef.current;
     if (!off) return;
-    undoRef.current = [{ image: off.toDataURL(), shapes: JSON.stringify([]) }];
+    undoRef.current = [off.toDataURL()];
     redoRef.current = [];
     bump();
   }, [offscreenRef, bump]);
 
-  const saveSnapshot = useCallback(
-    (shapes) => {
-      const off = offscreenRef.current;
-      if (!off) return;
-      undoRef.current.push({ image: off.toDataURL(), shapes: JSON.stringify(shapes) });
-      if (undoRef.current.length > 80) undoRef.current.shift();
-      redoRef.current = [];
-      bump();
-    },
-    [offscreenRef, bump]
-  );
+  const saveSnapshot = useCallback(() => {
+    const off = offscreenRef.current;
+    if (!off) return;
+    undoRef.current.push(off.toDataURL());
+    if (undoRef.current.length > 80) undoRef.current.shift();
+    redoRef.current = [];
+    bump();
+  }, [offscreenRef, bump]);
 
   const undo = useCallback(() => {
     if (undoRef.current.length <= 1) return;
@@ -46,12 +43,11 @@ export default function useHistory(offscreenRef, setShapes, redraw) {
       const ctx = off.getContext("2d");
       ctx.clearRect(0, 0, off.width, off.height);
       ctx.drawImage(img, 0, 0);
-      setShapes(JSON.parse(prev.shapes || "[]"));
       if (typeof redraw === "function") redraw();
     };
-    img.src = prev.image;
+    img.src = prev;
     bump();
-  }, [offscreenRef, redraw, setShapes, bump]);
+  }, [offscreenRef, redraw, bump]);
 
   const redo = useCallback(() => {
     if (redoRef.current.length === 0) return;
@@ -63,22 +59,20 @@ export default function useHistory(offscreenRef, setShapes, redraw) {
       const ctx = off.getContext("2d");
       ctx.clearRect(0, 0, off.width, off.height);
       ctx.drawImage(img, 0, 0);
-      setShapes(JSON.parse(nextSnap.shapes || "[]"));
       if (typeof redraw === "function") redraw();
     };
-    img.src = nextSnap.image;
+    img.src = nextSnap;
     bump();
-  }, [offscreenRef, redraw, setShapes, bump]);
+  }, [offscreenRef, redraw, bump]);
 
   const clear = useCallback(() => {
     const off = offscreenRef.current;
     if (!off) return;
-    undoRef.current = [{ image: off.toDataURL(), shapes: JSON.stringify([]) }];
+    undoRef.current = [off.toDataURL()];
     redoRef.current = [];
-    setShapes([]);
     if (typeof redraw === "function") redraw();
     bump();
-  }, [offscreenRef, setShapes, redraw, bump]);
+  }, [offscreenRef, redraw, bump]);
 
   const canUndo = useCallback(() => undoRef.current.length > 1, []);
   const canRedo = useCallback(() => redoRef.current.length > 0, []);

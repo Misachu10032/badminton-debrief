@@ -37,8 +37,8 @@ export default function CanvasDraw({
     {
       id: "t1",
       type: "triangle",
-      x: 150,
-      y: 150,
+      x: 200,
+      y: 700,
       size: 80,
       fill: "#ef4444",
       angle: 0,
@@ -46,8 +46,8 @@ export default function CanvasDraw({
     {
       id: "t2",
       type: "triangle",
-      x: 150,
-      y: 350,
+      x: 400,
+      y: 700,
       size: 80,
       fill: "#ef4444",
       angle: 0,
@@ -55,20 +55,20 @@ export default function CanvasDraw({
     {
       id: "t3",
       type: "triangle",
-      x: 400,
-      y: 150,
+      x: 200,
+      y: 250,
       size: 80,
       fill: "#60a5fa",
-      angle: 0,
+      angle:  Math.PI,
     },
     {
       id: "t4",
       type: "triangle",
       x: 400,
-      y: 350,
+      y: 250,
       size: 80,
       fill: "#60a5fa",
-      angle: 0,
+      angle:  Math.PI,
     },
   ];
 
@@ -121,7 +121,7 @@ export default function CanvasDraw({
     ctx.lineWidth = lineWidth;
 
     history.init();
-    history.saveSnapshot(initialShapes);
+    history.saveSnapshot();
 
     // Load background image
     const img = new Image();
@@ -160,10 +160,10 @@ export default function CanvasDraw({
   };
 
   const saveSnapshot = useCallback(
-    (optionalShapes) => {
-      history.saveSnapshot(optionalShapes ?? shapes);
+    () => {
+      history.saveSnapshot();
     },
-    [history, shapes]
+    [history]
   );
 
   // ----- Canvas pointer handlers -----
@@ -183,14 +183,13 @@ export default function CanvasDraw({
         const s = shapes[hit.index];
         rotateStartAngle.current = s.angle || 0;
         rotateStartPointerAngle.current = Math.atan2(y - s.y, x - s.x);
-        saveSnapshot();
         return;
       } else if (hit.type === "body") {
         isDragging.current = true;
         dragShapeIndex.current = hit.index;
         const s = shapes[hit.index];
         dragOffset.current = [x - s.x, y - s.y];
-        saveSnapshot();
+
         return;
       }
     }
@@ -201,7 +200,7 @@ export default function CanvasDraw({
     const ctx = offscreenCtxRef.current;
     ctx.beginPath();
     ctx.moveTo(x, y);
-    saveSnapshot();
+    history.saveSnapshot();
   };
 
   const pointerMove = (e) => {
@@ -254,19 +253,19 @@ export default function CanvasDraw({
       isRotating.current = false;
       rotateShapeIndex.current = -1;
       // finalize shapes snapshot
-      saveSnapshot(shapes);
+  
       return;
     }
     if (isDragging.current) {
       isDragging.current = false;
       dragShapeIndex.current = -1;
-      saveSnapshot(shapes);
+
       return;
     }
     if (isDrawing.current) {
       isDrawing.current = false;
       // finalize image snapshot
-      saveSnapshot(shapes);
+      history.saveSnapshot();
     }
   };
 
@@ -274,7 +273,7 @@ export default function CanvasDraw({
   const redo = () => history.redo();
   const clearAll = () => {
     // Save current state so user can undo the clear
-    saveSnapshot(shapes);
+    history.saveSnapshot();
 
     // Clear only the drawing pixels on the offscreen canvas
     const off = offscreenRef.current;
@@ -288,7 +287,7 @@ export default function CanvasDraw({
 
     // Push the cleared snapshot (blank drawing + initial shapes) to the history
     // so that the clear action itself is undoable.
-    history.saveSnapshot(initialShapes);
+    history.saveSnapshot();
 
     // Repaint
     redraw();
@@ -332,9 +331,9 @@ export default function CanvasDraw({
         <button className="px-3 py-1 border rounded" onClick={clearAll}>
           Clear
         </button>
-        <button className="px-3 py-1 border rounded" onClick={exportPNG}>
+        {/* <button className="px-3 py-1 border rounded" onClick={exportPNG}>
           Export PNG
-        </button>
+        </button> */}
       </div>
 
       <div style={{ width, height }}>
