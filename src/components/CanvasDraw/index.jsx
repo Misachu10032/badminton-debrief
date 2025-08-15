@@ -1,10 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useCallback } from "react";
-import {
-  globalToLocal,
-  pointInSquareLocal,
-} from "./triangleUtils";
+import { globalToLocal, pointInSquareLocal } from "./triangleUtils";
 import useHistory from "./useHistory";
 
 export default function CanvasDraw({ strokeStyle = "#000", lineWidth = 2 }) {
@@ -32,22 +29,22 @@ export default function CanvasDraw({ strokeStyle = "#000", lineWidth = 2 }) {
   const initialShapes = [
     {
       id: "t1",
-      x: 0.25,
-      y: 0.18,
+      x: 0.35,
+      y: 0.25,
       size: 0.25,
       src: "/yellow.png",
       angle: Math.PI,
     },
     {
       id: "t2",
-      x: 0.75,
-      y: 0.18,
+      x: 0.7,
+      y: 0.25,
       size: 0.25,
       src: "/yellow.png",
       angle: Math.PI,
     },
-    { id: "t3", x: 0.25, y: 0.82, size: 0.25, src: "/blue.png", angle: 0 },
-    { id: "t4", x: 0.75, y: 0.82, size: 0.25, src: "/blue.png", angle: 0 },
+    { id: "t3", x: 0.35, y: 0.82, size: 0.25, src: "/blue.png", angle: 0 },
+    { id: "t4", x: 0.7, y: 0.82, size: 0.25, src: "/blue.png", angle: 0 },
   ];
 
   const [shapes, setShapes] = useState(
@@ -62,14 +59,35 @@ export default function CanvasDraw({ strokeStyle = "#000", lineWidth = 2 }) {
   // Responsive canvas
   useEffect(() => {
     const handleResize = () => {
-      const w = Math.min(window.innerWidth, 480);
-      const h = Math.min(window.innerHeight - 120, 700);
+      const isMobile = window.innerWidth <= 768;
+      const paddingRight = 16; // gap from right edge in px
+
+      let w, h;
+      if (isMobile) {
+        w = Math.min(window.innerWidth - paddingRight, 480);
+        h = Math.min(window.innerHeight - 30, 700);
+      } else {
+        w = Math.min(window.innerWidth, 480);
+        h = Math.min(window.innerHeight - 120, 700);
+      }
+
       setCanvasSize({ width: w, height: h });
+
+      // Rescale shapes proportionally
+      setShapes((prev) =>
+        prev.map((s) => ({
+          ...s,
+          x: (s.x / width) * w,
+          y: (s.y / height) * h,
+          size: (s.size / Math.min(width, height)) * Math.min(w, h),
+        }))
+      );
     };
+
     handleResize();
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
-  }, []);
+  }, [width, height]);
 
   // Load images and background
   useEffect(() => {
@@ -153,71 +171,69 @@ export default function CanvasDraw({ strokeStyle = "#000", lineWidth = 2 }) {
   };
 
   // Hit test
-const hitTest = (px, py) => {
-  for (let i = shapes.length - 1; i >= 0; i--) {
-    const s = shapes[i];
+  const hitTest = (px, py) => {
+    for (let i = shapes.length - 1; i >= 0; i--) {
+      const s = shapes[i];
 
-    // Convert mouse to square-local coordinates
-    const [lx, ly] = globalToLocal(px, py, s);
+      // Convert mouse to square-local coordinates
+      const [lx, ly] = globalToLocal(px, py, s);
 
-    // 1️⃣ Top-right quarter = rotation handle
-    if (
-      lx >= 0 &&          // right half
-      ly <= 0 &&          // top half
-      Math.abs(lx) <= s.size / 2 &&
-      Math.abs(ly) <= s.size / 2
-    ) {
-      return { type: "rotate", index: i };
+      // 1️⃣ Top-right quarter = rotation handle
+      if (
+        lx >= 0 && // right half
+        ly <= 0 && // top half
+        Math.abs(lx) <= s.size / 2 &&
+        Math.abs(ly) <= s.size / 2
+      ) {
+        return { type: "rotate", index: i };
+      }
+
+      // 2️⃣ Rest of square = body
+      if (pointInSquareLocal(lx, ly, s.size)) {
+        return { type: "body", index: i };
+      }
     }
 
-    // 2️⃣ Rest of square = body
-    if (pointInSquareLocal(lx, ly, s.size)) {
-      return { type: "body", index: i };
-    }
-  }
-
-  return null;
-};
-
+    return null;
+  };
 
   // Pointer handlers
-const pointerDown = (e) => {
-  e.preventDefault();
-  const [x, y] = getPos(e);
+  const pointerDown = (e) => {
+    e.preventDefault();
+    const [x, y] = getPos(e);
 
-  // Reset all actions
-  isRotating.current = false;
-  isDragging.current = false;
-  isDrawing.current = false;
+    // Reset all actions
+    isRotating.current = false;
+    isDragging.current = false;
+    isDrawing.current = false;
 
-  const hit = hitTest(x, y);
+    const hit = hitTest(x, y);
 
-  if (hit?.type === "rotate") {
-    console.log("rotating")
-    isRotating.current = true;
-    rotateShapeIndex.current = hit.index;
-    rotateStartAngle.current = shapes[hit.index].angle || 0;
-    rotateStartPointerAngle.current = Math.atan2(
-      y - shapes[hit.index].y,
-      x - shapes[hit.index].x
-    );
-  } else if (hit?.type === "body") {
-        console.log("aaaa")
-    isDragging.current = true;
-    dragShapeIndex.current = hit.index;
-    const s = shapes[hit.index];
-    dragOffset.current = [x - s.x, y - s.y];
-  } else {
-            console.log("abbb")
-    isDrawing.current = true;
-    lastPos.current = [x, y];
-    const ctx = offscreenCtxRef.current;
-    ctx.beginPath();
-    ctx.moveTo(x, y);
-    history.saveSnapshot();
-  }
-};
-
+    if (hit?.type === "rotate") {
+      console.log("rotating");
+      isRotating.current = true;
+      rotateShapeIndex.current = hit.index;
+      rotateStartAngle.current = shapes[hit.index].angle || 0;
+      rotateStartPointerAngle.current = Math.atan2(
+        y - shapes[hit.index].y,
+        x - shapes[hit.index].x
+      );
+    } else if (hit?.type === "body") {
+      console.log("aaaa");
+      isDragging.current = true;
+      dragShapeIndex.current = hit.index;
+      const s = shapes[hit.index];
+      dragOffset.current = [x - s.x, y - s.y];
+    } else {
+      console.log("abbb");
+      isDrawing.current = true;
+      lastPos.current = [x, y];
+      const ctx = offscreenCtxRef.current;
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+      history.saveSnapshot();
+    }
+  };
 
   const pointerMove = (e) => {
     if (!isDrawing.current && !isDragging.current && !isRotating.current)
@@ -285,27 +301,35 @@ const pointerDown = (e) => {
   }, [shapes]);
 
   return (
-    <div>
-      <div className="mb-3 flex gap-2">
-        <button onClick={undo} disabled={!history.canUndo()}>
+    <div className="p-4 max-w-full text-black">
+      <div className="mb-3 flex flex-wrap justify-center gap-2">
+        <button
+          onClick={undo}
+          disabled={!history.canUndo()}
+          className="px-4 py-2 border border-black rounded text-black bg-white disabled:opacity-50"
+        >
           Undo
         </button>
-        <button onClick={redo} disabled={!history.canRedo()}>
+        <button
+          onClick={redo}
+          disabled={!history.canRedo()}
+          className="px-4 py-2 border border-black rounded text-black bg-white disabled:opacity-50"
+        >
           Redo
         </button>
-        <button onClick={clearAll}>Clear</button>
+        <button
+          onClick={clearAll}
+          className="px-4 py-2 border border-black rounded text-black bg-white"
+        >
+          Clear
+        </button>
       </div>
+
       <canvas
         ref={canvasRef}
         width={width}
         height={height}
-        style={{
-          touchAction: "none",
-          background: "#fff",
-          borderRadius: 6,
-          display: "block",
-          border: "1px solid #ddd",
-        }}
+        className="block mx-auto max-w-full touch-none bg-white rounded border border-gray-300"
         onPointerDown={pointerDown}
         onPointerMove={pointerMove}
         onPointerUp={pointerUp}
