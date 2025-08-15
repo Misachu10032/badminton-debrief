@@ -27,22 +27,8 @@ export default function CanvasDraw({ strokeStyle = "#000", lineWidth = 2 }) {
 
   // Initial shapes
   const initialShapes = [
-    {
-      id: "t1",
-      x: 0.35,
-      y: 0.25,
-      size: 0.25,
-      src: "/yellow.png",
-      angle: Math.PI,
-    },
-    {
-      id: "t2",
-      x: 0.7,
-      y: 0.25,
-      size: 0.25,
-      src: "/yellow.png",
-      angle: Math.PI,
-    },
+    { id: "t1", x: 0.35, y: 0.25, size: 0.25, src: "/yellow.png", angle: Math.PI },
+    { id: "t2", x: 0.7, y: 0.25, size: 0.25, src: "/yellow.png", angle: Math.PI },
     { id: "t3", x: 0.35, y: 0.82, size: 0.25, src: "/blue.png", angle: 0 },
     { id: "t4", x: 0.7, y: 0.82, size: 0.25, src: "/blue.png", angle: 0 },
   ];
@@ -56,30 +42,26 @@ export default function CanvasDraw({ strokeStyle = "#000", lineWidth = 2 }) {
     }))
   );
 
-  // Responsive canvas
+  // Responsive canvas: fit screen under buttons
   useEffect(() => {
     const handleResize = () => {
       const isMobile = window.innerWidth <= 768;
-      const paddingRight = 16; // gap from right edge in px
+      const paddingRight = 16;
+      const buttonHeight = 56; // approx height of buttons + margin
+      const availableWidth = isMobile ? window.innerWidth - paddingRight : Math.min(window.innerWidth, 480);
+      const availableHeight = isMobile
+        ?  Math.min(window.innerHeight - buttonHeight - 16, 700)// leave small margin
+        : Math.min(window.innerHeight - 120, 700);
 
-      let w, h;
-      if (isMobile) {
-        w = Math.min(window.innerWidth - paddingRight, 480);
-        h = Math.min(window.innerHeight - 30, 700);
-      } else {
-        w = Math.min(window.innerWidth, 480);
-        h = Math.min(window.innerHeight - 120, 700);
-      }
-
-      setCanvasSize({ width: w, height: h });
+      setCanvasSize({ width: availableWidth, height: availableHeight });
 
       // Rescale shapes proportionally
       setShapes((prev) =>
         prev.map((s) => ({
           ...s,
-          x: (s.x / width) * w,
-          y: (s.y / height) * h,
-          size: (s.size / Math.min(width, height)) * Math.min(w, h),
+          x: (s.x / width) * availableWidth,
+          y: (s.y / height) * availableHeight,
+          size: (s.size / Math.min(width, height)) * Math.min(availableWidth, availableHeight),
         }))
       );
     };
@@ -137,13 +119,7 @@ export default function CanvasDraw({ strokeStyle = "#000", lineWidth = 2 }) {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
       if (backgroundImageRef.current)
-        ctx.drawImage(
-          backgroundImageRef.current,
-          0,
-          0,
-          canvas.width,
-          canvas.height
-        );
+        ctx.drawImage(backgroundImageRef.current, 0, 0, canvas.width, canvas.height);
       if (offscreenRef.current) ctx.drawImage(offscreenRef.current, 0, 0);
 
       arr.forEach((s) => {
@@ -174,26 +150,18 @@ export default function CanvasDraw({ strokeStyle = "#000", lineWidth = 2 }) {
   const hitTest = (px, py) => {
     for (let i = shapes.length - 1; i >= 0; i--) {
       const s = shapes[i];
-
-      // Convert mouse to square-local coordinates
       const [lx, ly] = globalToLocal(px, py, s);
 
-      // 1️⃣ Top-right quarter = rotation handle
-      if (
-        lx >= 0 && // right half
-        ly <= 0 && // top half
-        Math.abs(lx) <= s.size / 2 &&
-        Math.abs(ly) <= s.size / 2
-      ) {
+      // Top-right quarter = rotation handle
+      if (lx >= 0 && ly <= 0 && Math.abs(lx) <= s.size / 2 && Math.abs(ly) <= s.size / 2) {
         return { type: "rotate", index: i };
       }
 
-      // 2️⃣ Rest of square = body
+      // Rest of square = body
       if (pointInSquareLocal(lx, ly, s.size)) {
         return { type: "body", index: i };
       }
     }
-
     return null;
   };
 
@@ -201,8 +169,6 @@ export default function CanvasDraw({ strokeStyle = "#000", lineWidth = 2 }) {
   const pointerDown = (e) => {
     e.preventDefault();
     const [x, y] = getPos(e);
-
-    // Reset all actions
     isRotating.current = false;
     isDragging.current = false;
     isDrawing.current = false;
@@ -210,22 +176,16 @@ export default function CanvasDraw({ strokeStyle = "#000", lineWidth = 2 }) {
     const hit = hitTest(x, y);
 
     if (hit?.type === "rotate") {
-      console.log("rotating");
       isRotating.current = true;
       rotateShapeIndex.current = hit.index;
       rotateStartAngle.current = shapes[hit.index].angle || 0;
-      rotateStartPointerAngle.current = Math.atan2(
-        y - shapes[hit.index].y,
-        x - shapes[hit.index].x
-      );
+      rotateStartPointerAngle.current = Math.atan2(y - shapes[hit.index].y, x - shapes[hit.index].x);
     } else if (hit?.type === "body") {
-      console.log("aaaa");
       isDragging.current = true;
       dragShapeIndex.current = hit.index;
       const s = shapes[hit.index];
       dragOffset.current = [x - s.x, y - s.y];
     } else {
-      console.log("abbb");
       isDrawing.current = true;
       lastPos.current = [x, y];
       const ctx = offscreenCtxRef.current;
@@ -236,33 +196,27 @@ export default function CanvasDraw({ strokeStyle = "#000", lineWidth = 2 }) {
   };
 
   const pointerMove = (e) => {
-    if (!isDrawing.current && !isDragging.current && !isRotating.current)
-      return;
+    if (!isDrawing.current && !isDragging.current && !isRotating.current) return;
     e.preventDefault();
     const [x, y] = getPos(e);
 
     if (isRotating.current && rotateShapeIndex.current !== -1) {
       const i = rotateShapeIndex.current;
       const s = shapes[i];
-      const delta =
-        Math.atan2(y - s.y, x - s.x) - rotateStartPointerAngle.current;
+      const delta = Math.atan2(y - s.y, x - s.x) - rotateStartPointerAngle.current;
       const newAngle = rotateStartAngle.current + delta;
       setShapes((prev) => {
         const next = [...prev];
         next[i] = { ...next[i], angle: newAngle };
-        redraw(next); // <-- pass updated shapes
+        redraw(next);
         return next;
       });
     } else if (isDragging.current && dragShapeIndex.current !== -1) {
       const i = dragShapeIndex.current;
       setShapes((prev) => {
         const next = [...prev];
-        next[i] = {
-          ...next[i],
-          x: x - dragOffset.current[0],
-          y: y - dragOffset.current[1],
-        };
-        redraw(next); // <-- pass updated shapes
+        next[i] = { ...next[i], x: x - dragOffset.current[0], y: y - dragOffset.current[1] };
+        redraw(next);
         return next;
       });
     } else if (isDrawing.current) {
@@ -296,13 +250,12 @@ export default function CanvasDraw({ strokeStyle = "#000", lineWidth = 2 }) {
     redraw();
   };
 
-  useEffect(() => {
-    redraw();
-  }, [shapes]);
+  useEffect(() => redraw(), [shapes]);
 
   return (
-    <div className="p-4 max-w-full text-black">
-      <div className="mb-3 flex flex-wrap justify-center gap-2">
+    <div className="flex flex-col items-center justify-start w-full h-screen overflow-hidden bg-white">
+      {/* Buttons */}
+      <div className="flex flex-wrap justify-center gap-2 p-2 text-black">
         <button
           onClick={undo}
           disabled={!history.canUndo()}
@@ -325,11 +278,12 @@ export default function CanvasDraw({ strokeStyle = "#000", lineWidth = 2 }) {
         </button>
       </div>
 
+      {/* Canvas */}
       <canvas
         ref={canvasRef}
         width={width}
         height={height}
-        className="block mx-auto max-w-full touch-none bg-white rounded border border-gray-300"
+        className="touch-none bg-white rounded border border-gray-300 block"
         onPointerDown={pointerDown}
         onPointerMove={pointerMove}
         onPointerUp={pointerUp}
