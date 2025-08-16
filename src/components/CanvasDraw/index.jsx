@@ -31,6 +31,7 @@ export default function CanvasDraw({ strokeStyle = "#000", lineWidth = 2 }) {
     { id: "t2", x: 0.7, y: 0.25, size: 0.25, src: "/yellow.png", angle: Math.PI },
     { id: "t3", x: 0.35, y: 0.82, size: 0.25, src: "/blue.png", angle: 0 },
     { id: "t4", x: 0.7, y: 0.82, size: 0.25, src: "/blue.png", angle: 0 },
+      { id: "t5", x: 0.8, y: 0.5, size: 0.20, src: "/shuttle.png", angle: 0 },
   ];
 
   const [shapes, setShapes] = useState(
