@@ -12,7 +12,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata = {
-   title: "羽球小画板",
+   title: "羽球赛后总结小画板",
   description: "羽球人赛后总结",
     icons: {
     icon: "/my-bg.png",
