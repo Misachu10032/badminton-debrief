@@ -1,3 +1,4 @@
+import { headers } from "next/headers";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
@@ -11,25 +12,36 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-export const metadata = {
-   title: "羽球赛后总结小画板",
-  description: "羽球人赛后总结",
-    icons: {
-    icon: "/my-bg.png",
-  },
-};
+// simple language detection
+function getLang() {
+  const h = headers();
+  const lang = h.get("accept-language") || "";
 
-export default function RootLayout({ children }) {
-  return (
-    <html lang="en">
-      <head>
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
-      </head>
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
-        {children}
-      </body>
-    </html>
-  );
+  if (lang.startsWith("zh")) return "zh";
+  return "en";
+}
+
+export async function generateMetadata() {
+  const lang = getLang();
+
+  const dict = {
+    en: {
+      title: "Badminton Tactics Board",
+      description: "Analyze your badminton games",
+    },
+    zh: {
+      title: "羽球赛后总结小画板",
+      description: "羽球人赛后总结",
+    },
+  };
+
+  const t = dict[lang];
+
+  return {
+    title: t.title,
+    description: t.description,
+    icons: {
+      icon: "/my-bg.png",
+    },
+  };
 }
