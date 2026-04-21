@@ -315,15 +315,15 @@ export default function CanvasDraw({ strokeStyle = "#000", lineWidth = 2 }) {
   useEffect(() => redraw(), [shapes, flipModes]);
 
   return (
-    <div className="flex flex-col items-center w-full h-screen bg-white">
+    <div className="flex flex-col items-center w-full h-screen overflow-hidden bg-white">
       <div className="flex gap-2 p-2">
-        <button onClick={() => cycleFlip("yellow")} className="px-4 py-2 border rounded">
+        <button onClick={() => cycleFlip("yellow")} className="px-4 py-2 border rounded text-black bg-white">
           Flip Yellow
         </button>
-        <button onClick={() => cycleFlip("blue")} className="px-4 py-2 border rounded">
+        <button onClick={() => cycleFlip("blue")} className="px-4 py-2 border rounded text-black bg-white">
           Flip Blue
         </button>
-        <button onClick={clearAll} className="px-4 py-2 border rounded">
+        <button onClick={clearAll} className="px-4 py-2 border rounded text-black bg-white">
           Clear
         </button>
       </div>
@@ -332,7 +332,7 @@ export default function CanvasDraw({ strokeStyle = "#000", lineWidth = 2 }) {
         ref={canvasRef}
         width={width}
         height={height}
-        className="border rounded"
+        className="touch-none bg-white rounded border border-gray-300 block"
         onPointerDown={pointerDown}
         onPointerMove={pointerMove}
         onPointerUp={pointerUp}
