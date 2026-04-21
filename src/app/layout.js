@@ -1,5 +1,5 @@
-import { headers } from "next/headers";
 import { Geist, Geist_Mono } from "next/font/google";
+import { headers } from "next/headers";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -12,17 +12,17 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-// simple language detection
-function getLang() {
-  const h = headers();
+async function getLang() {
+  const h = await headers();
   const lang = h.get("accept-language") || "";
 
   if (lang.startsWith("zh")) return "zh";
   return "en";
 }
 
+
 export async function generateMetadata() {
-  const lang = getLang();
+  const lang = await getLang();
 
   const dict = {
     en: {
@@ -44,4 +44,15 @@ export async function generateMetadata() {
       icon: "/my-bg.png",
     },
   };
+}
+
+
+export default function RootLayout({ children }) {
+  return (
+    <html lang="en">
+      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+        {children}
+      </body>
+    </html>
+  );
 }
