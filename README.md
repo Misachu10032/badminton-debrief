@@ -10,3 +10,9 @@ I don't want my after match debrief to be like
 https://github.com/user-attachments/assets/c3aa60d9-b3cc-4957-abd8-6237db95ed2b
 
 so I made this app
+## How to run
+Clone and navigate to the repo
+
+```npm i```
+
+``` npm run dev```
