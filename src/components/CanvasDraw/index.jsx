@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import { globalToLocal, pointInSquareLocal } from "./triangleUtils";
-import useHistory from "./useHistory";
 
 export default function CanvasDraw({ strokeStyle = "#000", lineWidth = 2 }) {
   // Canvas size
@@ -27,11 +26,11 @@ export default function CanvasDraw({ strokeStyle = "#000", lineWidth = 2 }) {
 
   // Initial shapes
   const initialShapes = [
-    { id: "t1", x: 0.35, y: 0.25, size: 0.25, src: "/yellow.png", angle: Math.PI },
-    { id: "t2", x: 0.7, y: 0.25, size: 0.25, src: "/yellow.png", angle: Math.PI },
-    { id: "t3", x: 0.35, y: 0.82, size: 0.25, src: "/blue.png", angle: 0 },
-    { id: "t4", x: 0.7, y: 0.82, size: 0.25, src: "/blue.png", angle: 0 },
-      { id: "t5", x: 0.8, y: 0.5, size: 0.20, src: "/shuttle.png", angle: 0 },
+    { id: "t1", x: 0.35, y: 0.25, size: 0.25, src: "/yellow.png", angle: Math.PI, flipped: false },
+    { id: "t2", x: 0.7, y: 0.25, size: 0.25, src: "/yellow.png", angle: Math.PI, flipped: false },
+    { id: "t3", x: 0.35, y: 0.82, size: 0.25, src: "/blue.png", angle: 0, flipped: false },
+    { id: "t4", x: 0.7, y: 0.82, size: 0.25, src: "/blue.png", angle: 0, flipped: false },
+    { id: "t5", x: 0.8, y: 0.5, size: 0.20, src: "/shuttle.png", angle: 0 },
   ];
 
   const [shapes, setShapes] = useState(
@@ -51,7 +50,7 @@ export default function CanvasDraw({ strokeStyle = "#000", lineWidth = 2 }) {
       const buttonHeight = 56; // approx height of buttons + margin
       const availableWidth = isMobile ? window.innerWidth - paddingRight : Math.min(window.innerWidth, 480);
       const availableHeight = isMobile
-        ?  Math.min(window.innerHeight - buttonHeight - 16, 700)// leave small margin
+        ? Math.min(window.innerHeight - buttonHeight - 16, 700)// leave small margin
         : Math.min(window.innerHeight - 120, 700);
 
       setCanvasSize({ width: availableWidth, height: availableHeight });
@@ -111,6 +110,27 @@ export default function CanvasDraw({ strokeStyle = "#000", lineWidth = 2 }) {
     ctx.lineWidth = lineWidth;
   }, [width, height, strokeStyle, lineWidth]);
 
+  const [flipMode, setFlipMode] = useState(0);
+  const cycleFlip = () => {
+    setFlipMode((prevMode) => {
+      const nextMode = (prevMode + 1) % 3;
+
+      setShapes((prevShapes) =>
+        prevShapes.map((s) => {
+          if (s.id === "t1") {
+            return { ...s, flipped: nextMode >= 1 };
+          }
+          if (s.id === "t2") {
+            return { ...s, flipped: nextMode >= 2 };
+          }
+          return s;
+        })
+      );
+
+      return nextMode;
+    });
+  };
+
   // Redraw function
   const redraw = useCallback(
     (arr = shapes) => {
@@ -128,6 +148,10 @@ export default function CanvasDraw({ strokeStyle = "#000", lineWidth = 2 }) {
           ctx.save();
           ctx.translate(s.x, s.y);
           ctx.rotate(s.angle || 0);
+          if (s.flipped) {
+            ctx.scale(-1, 1); // horizontal mirror
+          }
+
           ctx.drawImage(s.imgObj, -s.size / 2, -s.size / 2, s.size, s.size);
           ctx.restore();
         }
@@ -135,8 +159,6 @@ export default function CanvasDraw({ strokeStyle = "#000", lineWidth = 2 }) {
     },
     [shapes]
   );
-
-  const history = useHistory(offscreenRef, setShapes, redraw);
 
   // Get canvas pointer position
   const getPos = (e) => {
@@ -192,7 +214,7 @@ export default function CanvasDraw({ strokeStyle = "#000", lineWidth = 2 }) {
       const ctx = offscreenCtxRef.current;
       ctx.beginPath();
       ctx.moveTo(x, y);
-      history.saveSnapshot();
+
     }
   };
 
@@ -209,7 +231,6 @@ export default function CanvasDraw({ strokeStyle = "#000", lineWidth = 2 }) {
       setShapes((prev) => {
         const next = [...prev];
         next[i] = { ...next[i], angle: newAngle };
-        redraw(next);
         return next;
       });
     } else if (isDragging.current && dragShapeIndex.current !== -1) {
@@ -217,7 +238,6 @@ export default function CanvasDraw({ strokeStyle = "#000", lineWidth = 2 }) {
       setShapes((prev) => {
         const next = [...prev];
         next[i] = { ...next[i], x: x - dragOffset.current[0], y: y - dragOffset.current[1] };
-        redraw(next);
         return next;
       });
     } else if (isDrawing.current) {
@@ -237,17 +257,16 @@ export default function CanvasDraw({ strokeStyle = "#000", lineWidth = 2 }) {
     dragShapeIndex.current = -1;
     if (isDrawing.current) {
       isDrawing.current = false;
-      history.saveSnapshot();
+
     }
   };
 
-  const undo = () => history.undo();
-  const redo = () => history.redo();
+
   const clearAll = () => {
-    history.saveSnapshot();
+
     const ctx = offscreenCtxRef.current;
     ctx?.clearRect(0, 0, width, height);
-    history.saveSnapshot();
+
     redraw();
   };
 
@@ -258,18 +277,10 @@ export default function CanvasDraw({ strokeStyle = "#000", lineWidth = 2 }) {
       {/* Buttons */}
       <div className="flex flex-wrap justify-center gap-2 p-2 text-black">
         <button
-          onClick={undo}
-          disabled={!history.canUndo()}
-          className="px-4 py-2 border border-black rounded text-black bg-white disabled:opacity-50"
+          onClick={cycleFlip}
+          className="px-4 py-2 border border-black rounded text-black bg-white"
         >
-          Undo
-        </button>
-        <button
-          onClick={redo}
-          disabled={!history.canRedo()}
-          className="px-4 py-2 border border-black rounded text-black bg-white disabled:opacity-50"
-        >
-          Redo
+          Flip Cycle
         </button>
         <button
           onClick={clearAll}

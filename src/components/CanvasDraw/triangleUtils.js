@@ -1,10 +1,12 @@
-// src/components/Canvas/imageUtils.js
-// Helpers for square images
 
 // Convert global coordinates to local coordinates relative to a square image
 export function globalToLocal(px, py, s) {
-  const dx = px - s.x;
-  const dy = py - s.y;
+  let dx = px - s.x;
+  let dy = py - s.y;
+
+  if (s.flipped) {
+    dx = -dx;
+  }
   const cos = Math.cos(-s.angle || 0);
   const sin = Math.sin(-s.angle || 0);
   const lx = dx * cos - dy * sin;
