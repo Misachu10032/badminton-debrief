@@ -108,25 +108,35 @@ export default function CanvasDraw({ strokeStyle = "#000", lineWidth = 2 }) {
   // Load images
   useEffect(() => {
     const loadImages = async () => {
+      // load shape images
       const loadedShapes = await Promise.all(
-        shapes.map(
+        initialShapes.map(
           (s) =>
             new Promise((res) => {
               const img = new Image();
               img.src = s.src;
-              img.onload = () => res({ ...s, imgObj: img });
+              img.onload = () =>
+                res({
+                  ...s,
+                  x: s.x * width,
+                  y: s.y * height,
+                  size: s.size * Math.min(width, height),
+                  imgObj: img,
+                });
             })
         )
       );
 
-      setShapes(loadedShapes);
+      // load background
+      const bg = await new Promise((res) => {
+        const img = new Image();
+        img.src = "/my-bg.png";
+        img.onload = () => res(img);
+      });
 
-      const bg = new Image();
-      bg.src = "/my-bg.png";
-      bg.onload = () => {
-        backgroundImageRef.current = bg;
-        redraw();
-      };
+      // set both together
+      backgroundImageRef.current = bg;
+      setShapes(loadedShapes); // triggers redraw correctly
     };
 
     loadImages();
